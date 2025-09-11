@@ -1,0 +1,190 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# AWS
+.aws/
+*.pem
+*.key
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+.coverage
+.pytest_cache/
+.tox/
+.nox/
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# Lambda deployment packages
+*.zip
+lambda-deployment-*.zip
+lambda/*/package/
+lambda/*/dist/
+lambda/*/*.zip
+
+# CloudFormation
+.cfn-lint-ignore
+
+# Node.js (if used for frontend build)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Excel/CSV test files
+test-*.csv
+test-*.xlsx
+sample-*.csv
+sample-*.xlsx
+easy-crm-test.xlsx
+
+# Deployment artifacts
+deployment-params-*.json
+deployment-params.json
+/tmp/
+frontend/config.json
+frontend/js/config-inject.js
+
+# Local configuration
+config/local.yaml
+config/dev.yaml
+
+# Documentation build
+docs/_build/
+site/
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# PEP 582
+__pypackages__/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/# Summary
+ and documentation files
+CLEANUP_SUMMARY.md
+PHONE_FIELD_INTEGRATION_TEST_SUMMARY.md
+MULTI_WORKSHEET_ENHANCEMENT_SUMMARY.md
+DUPLICATE_HANDLING_*.md
+PAGINATION_FIX_SUMMARY.md# Debug an
+d test files
+debug-*.html
+test_*.html
+*_test.html
+test-*.py
+fix_*.py
+deploy_test.sh
+
+# Lambda function temporary files
+lambda/*/lambda_function_clean.py
+lambda/*/lambda_function_backup.py
+lambda-*.zip
+lambda-fixed.zip
+lambda-minimal.zip
+
+# Deployment parameter files
+deployment-params*.json
+
+SUMMARIES
+generated-diagrams
+SECURITY_CHECKLIST.md

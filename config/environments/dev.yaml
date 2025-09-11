@@ -1,0 +1,50 @@
+# Development Environment Configuration
+Environment: dev
+StackName: easy-crm-dev
+Region: ap-southeast-1
+Profile: nch-prod
+
+# Resource Configuration
+DynamoDB:
+  BillingMode: ON_DEMAND
+  PointInTimeRecovery: false
+  DeletionProtection: false
+
+Lambda:
+  ReservedConcurrency: 10
+  MemorySize:
+    FileUpload: 128
+    LeadSplitter: 512
+    DeepSeekCaller: 512
+    LeadReader: 256
+    LeadExporter: 256
+    Chatbot: 256
+    StatusReader: 256
+  Timeout:
+    FileUpload: 30
+    LeadSplitter: 300
+    DeepSeekCaller: 900
+    LeadReader: 30
+    LeadExporter: 60
+    Chatbot: 60
+    StatusReader: 30
+
+S3:
+  LifecyclePolicyEnabled: true
+  VersioningEnabled: false
+  
+CloudFront:
+  PriceClass: PriceClass_100
+  CachingEnabled: true
+  
+# Monitoring
+CloudWatch:
+  LogRetentionDays: 7
+  DetailedMonitoring: false
+
+# Tags
+Tags:
+  Environment: dev
+  Application: EasyCRM
+  Owner: Development
+  CostCenter: Engineering

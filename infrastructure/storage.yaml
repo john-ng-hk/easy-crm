@@ -1,0 +1,217 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Easy CRM - Storage Resources (DynamoDB and S3)'
+
+Parameters:
+  Environment:
+    Type: String
+    Description: Environment name
+    Default: 'prod'
+  
+  LeadSplitterFunctionArn:
+    Type: String
+    Description: ARN of the Lead Splitter Lambda function (optional)
+    Default: ''
+
+Conditions:
+  HasLambdaFunction: !Not [!Equals [!Ref LeadSplitterFunctionArn, '']]
+
+Resources:
+  # DynamoDB Table for Leads
+  LeadsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'easy-crm-leads-${Environment}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: leadId
+          AttributeType: S
+        - AttributeName: company
+          AttributeType: S
+        - AttributeName: email
+          AttributeType: S
+        - AttributeName: createdAt
+          AttributeType: S
+      KeySchema:
+        - AttributeName: leadId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: CompanyIndex
+          KeySchema:
+            - AttributeName: company
+              KeyType: HASH
+            - AttributeName: createdAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: EmailIndex
+          KeySchema:
+            - AttributeName: email
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: CreatedAtIndex
+          KeySchema:
+            - AttributeName: createdAt
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: EasyCRM
+
+  # DynamoDB Table for Processing Status
+  ProcessingStatusTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'easy-crm-processing-status-${Environment}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: uploadId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: uploadId
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: EasyCRM
+
+  # S3 Bucket for File Storage
+  FilesBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'easy-crm-files-${AWS::AccountId}-${Environment}'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteUploadsAfter90Days
+            Status: Enabled
+            ExpirationInDays: 90
+            Prefix: uploads/
+          - Id: DeleteIncompleteMultipartUploads
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+      # S3 notifications will be configured separately after Lambda functions are created
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: EasyCRM
+
+  # S3 Bucket for Website Hosting
+  WebsiteBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'easy-crm-website-${AWS::AccountId}-${Environment}'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: index.html
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: EasyCRM
+
+  # Website Bucket Policy will be created in CloudFront stack
+
+  # CloudFront Origin Access Control
+  OriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub 'easy-crm-oac-${Environment}'
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+        Description: !Sub 'OAC for Easy CRM ${Environment}'
+
+  # Lambda permissions will be handled in the Lambda stack
+
+Outputs:
+  LeadsTableName:
+    Description: Name of the DynamoDB Leads table
+    Value: !Ref LeadsTable
+    Export:
+      Name: !Sub '${AWS::StackName}-LeadsTableName'
+
+  LeadsTableArn:
+    Description: ARN of the DynamoDB Leads table
+    Value: !GetAtt LeadsTable.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-LeadsTableArn'
+
+  ProcessingStatusTableName:
+    Description: Name of the DynamoDB ProcessingStatus table
+    Value: !Ref ProcessingStatusTable
+    Export:
+      Name: !Sub '${AWS::StackName}-ProcessingStatusTableName'
+
+  ProcessingStatusTableArn:
+    Description: ARN of the DynamoDB ProcessingStatus table
+    Value: !GetAtt ProcessingStatusTable.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-ProcessingStatusTableArn'
+
+  FilesBucketName:
+    Description: Name of the S3 Files bucket
+    Value: !Ref FilesBucket
+    Export:
+      Name: !Sub '${AWS::StackName}-FilesBucketName'
+
+  FilesBucketArn:
+    Description: ARN of the S3 Files bucket
+    Value: !GetAtt FilesBucket.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-FilesBucketArn'
+
+  WebsiteBucketName:
+    Description: Name of the S3 Website bucket
+    Value: !Ref WebsiteBucket
+    Export:
+      Name: !Sub '${AWS::StackName}-WebsiteBucketName'
+
+  WebsiteBucketArn:
+    Description: ARN of the S3 Website bucket
+    Value: !GetAtt WebsiteBucket.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-WebsiteBucketArn'
+
+  OriginAccessControlId:
+    Description: CloudFront Origin Access Control ID
+    Value: !Ref OriginAccessControl
+    Export:
+      Name: !Sub '${AWS::StackName}-CloudFrontOAC'

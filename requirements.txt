@@ -1,0 +1,31 @@
+# AWS SDK and core dependencies
+boto3==1.35.77
+botocore==1.35.77
+
+# Data processing
+pandas==2.2.3
+openpyxl==3.1.5
+
+# HTTP client for DeepSeek API
+requests==2.32.3
+
+# Testing framework
+pytest==8.3.4
+pytest-mock==3.14.0
+pytest-cov==6.0.0
+pytest-xdist==3.6.0
+moto==5.0.21
+
+# Security testing
+PyJWT==2.10.1
+
+# Performance monitoring
+psutil==6.1.0
+
+# Additional testing utilities
+coverage==7.6.9
+faker==33.1.0
+
+# Utilities
+python-dateutil==2.9.0.post0
+uuid==1.30

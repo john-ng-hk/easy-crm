@@ -1,0 +1,433 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Easy CRM - Lambda Functions and IAM Roles'
+
+Parameters:
+  Environment:
+    Type: String
+    Description: Environment name
+    Default: 'prod'
+  
+  DeepSeekApiKey:
+    Type: String
+    Description: API key for DeepSeek AI service
+    NoEcho: true
+  
+  LeadsTableName:
+    Type: String
+    Description: Name of the DynamoDB Leads table
+  
+  FilesBucketName:
+    Type: String
+    Description: Name of the S3 Files bucket
+  
+  UserPoolId:
+    Type: String
+    Description: Cognito User Pool ID
+  
+  ProcessingStatusTableName:
+    Type: String
+    Description: Name of the DynamoDB ProcessingStatus table
+
+Resources:
+  # SQS Queue for Lead Processing Batches
+  LeadProcessingQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub 'easy-crm-lead-processing-${Environment}'
+      VisibilityTimeout: 60  # 1 minute for DeepSeek processing
+      MessageRetentionPeriod: 1209600  # 14 days
+      ReceiveMessageWaitTimeSeconds: 20  # Long polling
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt LeadProcessingDLQ.Arn
+        maxReceiveCount: 3
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: EasyCRM
+
+  # Dead Letter Queue for failed processing
+  LeadProcessingDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub 'easy-crm-lead-processing-dlq-${Environment}'
+      MessageRetentionPeriod: 1209600  # 14 days
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: EasyCRM
+  # IAM Role for Lambda Functions
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'easy-crm-lambda-role-${Environment}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DynamoDBAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                  - dynamodb:BatchWriteItem
+                  - dynamodb:BatchGetItem
+                Resource:
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${LeadsTableName}'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${LeadsTableName}/index/*'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ProcessingStatusTableName}'
+        - PolicyName: S3Access
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                  - s3:GetObjectVersion
+                Resource:
+                  - !Sub 'arn:aws:s3:::${FilesBucketName}/*'
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource:
+                  - !Sub 'arn:aws:s3:::${FilesBucketName}'
+        - PolicyName: CognitoAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cognito-idp:GetUser
+                  - cognito-idp:AdminGetUser
+                Resource:
+                  - !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${UserPoolId}'
+        - PolicyName: SQSAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                Resource:
+                  - !GetAtt LeadProcessingQueue.Arn
+                  - !GetAtt LeadProcessingDLQ.Arn
+
+  # File Upload Lambda Function
+  FileUploadFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub 'easy-crm-file-upload-${Environment}'
+      Runtime: python3.13
+      Handler: lambda_function.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import uuid
+          from datetime import datetime, timedelta
+          
+          def lambda_handler(event, context):
+              return {
+                  'statusCode': 200,
+                  'body': json.dumps({'message': 'Function deployed, code will be updated separately'})
+              }
+      Environment:
+        Variables:
+          FILES_BUCKET: !Ref FilesBucketName
+          PROCESSING_STATUS_TABLE: !Ref ProcessingStatusTableName
+          ENVIRONMENT: !Ref Environment
+      Timeout: 30
+      MemorySize: 128
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: EasyCRM
+
+  # Lead Splitter Lambda Function (replaces File Formatter)
+  LeadSplitterFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub 'easy-crm-lead-splitter-${Environment}'
+      Runtime: python3.13
+      Handler: lambda_function.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          
+          def lambda_handler(event, context):
+              return {
+                  'statusCode': 200,
+                  'body': json.dumps({'message': 'Function deployed, code will be updated separately'})
+              }
+      Layers:
+        - arn:aws:lambda:ap-southeast-1:336392948345:layer:AWSSDKPandas-Python313:3
+      Environment:
+        Variables:
+          PROCESSING_QUEUE_URL: !Ref LeadProcessingQueue
+          PROCESSING_STATUS_TABLE: !Ref ProcessingStatusTableName
+          ENVIRONMENT: !Ref Environment
+      Timeout: 300
+      MemorySize: 512
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: EasyCRM
+
+  # DeepSeek Caller Lambda Function
+  DeepSeekCallerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub 'easy-crm-deepseek-caller-${Environment}'
+      Runtime: python3.13
+      Handler: lambda_function.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          
+          def lambda_handler(event, context):
+              return {
+                  'statusCode': 200,
+                  'body': json.dumps({'message': 'Function deployed, code will be updated separately'})
+              }
+      Environment:
+        Variables:
+          LEADS_TABLE: !Ref LeadsTableName
+          PROCESSING_STATUS_TABLE: !Ref ProcessingStatusTableName
+          DEEPSEEK_API_KEY: !Ref DeepSeekApiKey
+          ENVIRONMENT: !Ref Environment
+      Timeout: 900  # 15 minutes for DeepSeek processing
+      MemorySize: 512
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: EasyCRM
+
+  # Lead Reader Lambda Function
+  LeadReaderFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub 'easy-crm-lead-reader-${Environment}'
+      Runtime: python3.13
+      Handler: lambda_function.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          
+          def lambda_handler(event, context):
+              return {
+                  'statusCode': 200,
+                  'body': json.dumps({'message': 'Function deployed, code will be updated separately'})
+              }
+      Environment:
+        Variables:
+          LEADS_TABLE: !Ref LeadsTableName
+          ENVIRONMENT: !Ref Environment
+      Timeout: 30
+      MemorySize: 256
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: EasyCRM
+
+  # Lead Exporter Lambda Function
+  LeadExporterFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub 'easy-crm-lead-exporter-${Environment}'
+      Runtime: python3.13
+      Handler: lambda_function.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          
+          def lambda_handler(event, context):
+              return {
+                  'statusCode': 200,
+                  'body': json.dumps({'message': 'Function deployed, code will be updated separately'})
+              }
+      Environment:
+        Variables:
+          LEADS_TABLE: !Ref LeadsTableName
+          ENVIRONMENT: !Ref Environment
+      Timeout: 60
+      MemorySize: 256
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: EasyCRM
+
+  # Chatbot Lambda Function
+  ChatbotFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub 'easy-crm-chatbot-${Environment}'
+      Runtime: python3.13
+      Handler: lambda_function.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          
+          def lambda_handler(event, context):
+              return {
+                  'statusCode': 200,
+                  'body': json.dumps({'message': 'Function deployed, code will be updated separately'})
+              }
+      Environment:
+        Variables:
+          LEADS_TABLE: !Ref LeadsTableName
+          DEEPSEEK_API_KEY: !Ref DeepSeekApiKey
+          ENVIRONMENT: !Ref Environment
+      Timeout: 60
+      MemorySize: 256
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: EasyCRM
+
+  # Status Reader Lambda Function
+  StatusReaderFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub 'easy-crm-status-reader-${Environment}'
+      Runtime: python3.13
+      Handler: lambda_function.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          
+          def lambda_handler(event, context):
+              return {
+                  'statusCode': 200,
+                  'body': json.dumps({'message': 'Function deployed, code will be updated separately'})
+              }
+      Environment:
+        Variables:
+          PROCESSING_STATUS_TABLE: !Ref ProcessingStatusTableName
+          SQS_QUEUE_URL: !Ref LeadProcessingQueue
+          ENVIRONMENT: !Ref Environment
+      Timeout: 30
+      MemorySize: 256
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: EasyCRM
+
+
+
+  # S3 Event Source Mapping for Lead Splitter
+  LeadSplitterS3Permission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref LeadSplitterFunction
+      Action: lambda:InvokeFunction
+      Principal: s3.amazonaws.com
+      SourceArn: !Sub 'arn:aws:s3:::${FilesBucketName}'
+
+  # SQS Event Source Mapping for DeepSeek Caller
+  DeepSeekCallerEventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn: !GetAtt LeadProcessingQueue.Arn
+      FunctionName: !Ref DeepSeekCallerFunction
+      BatchSize: 1  # Process one message at a time
+      MaximumBatchingWindowInSeconds: 0
+
+  # S3 Notification Configuration will be added manually after deployment
+
+  # S3 notification will be configured via storage stack update
+
+Outputs:
+  FileUploadFunctionArn:
+    Description: ARN of the File Upload Lambda function
+    Value: !GetAtt FileUploadFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-FileUploadFunctionArn'
+
+  LeadSplitterFunctionArn:
+    Description: ARN of the Lead Splitter Lambda function
+    Value: !GetAtt LeadSplitterFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-LeadSplitterFunctionArn'
+
+  DeepSeekCallerFunctionArn:
+    Description: ARN of the DeepSeek Caller Lambda function
+    Value: !GetAtt DeepSeekCallerFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-DeepSeekCallerFunctionArn'
+
+  LeadProcessingQueueUrl:
+    Description: URL of the Lead Processing SQS Queue
+    Value: !Ref LeadProcessingQueue
+    Export:
+      Name: !Sub '${AWS::StackName}-LeadProcessingQueueUrl'
+
+  LeadReaderFunctionArn:
+    Description: ARN of the Lead Reader Lambda function
+    Value: !GetAtt LeadReaderFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-LeadReaderFunctionArn'
+
+  LeadExporterFunctionArn:
+    Description: ARN of the Lead Exporter Lambda function
+    Value: !GetAtt LeadExporterFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-LeadExporterFunctionArn'
+
+  ChatbotFunctionArn:
+    Description: ARN of the Chatbot Lambda function
+    Value: !GetAtt ChatbotFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-ChatbotFunctionArn'
+
+  StatusReaderFunctionArn:
+    Description: ARN of the Status Reader Lambda function
+    Value: !GetAtt StatusReaderFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-StatusReaderFunctionArn'
+
+
+
+  LambdaExecutionRoleArn:
+    Description: ARN of the Lambda execution role
+    Value: !GetAtt LambdaExecutionRole.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-LambdaExecutionRoleArn'

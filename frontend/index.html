@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Easy CRM - Lead Management System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <h1 class="text-xl font-semibold text-gray-900">Easy CRM</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span id="user-info" class="text-sm text-gray-600 hidden"></span>
+                    <button type="button" id="logout-btn"
+                        class="bg-red-600 text-white px-4 py-2 rounded-md text-sm hover:bg-red-700 hidden">
+                        Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Login Screen -->
+    <div id="login-screen" class="min-h-screen flex items-center justify-center">
+        <div class="max-w-md w-full space-y-8 p-8">
+            <div class="text-center">
+                <h2 class="text-3xl font-bold text-gray-900">Sign in to Easy CRM</h2>
+                <p class="mt-2 text-sm text-gray-600">Manage your leads efficiently</p>
+            </div>
+            <div id="cognito-login" class="mt-8">
+                <!-- Cognito login will be rendered here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="main-app" class="hidden">
+        <!-- File Upload Section -->
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="bg-white rounded-lg shadow p-6 mb-8">
+                <h2 class="text-lg font-medium text-gray-900 mb-4">Upload Lead Data</h2>
+
+                <!-- Upload Area -->
+                <div id="upload-area"
+                    class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 transition-colors cursor-pointer">
+                    <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-4"></i>
+                    <p class="text-lg text-gray-600 mb-2">Drop your CSV or Excel file here</p>
+                    <p class="text-sm text-gray-500 mb-4">or click to browse</p>
+                    <input type="file" id="file-input" class="hidden" accept=".csv,.xlsx,.xls">
+                    <button type="button" id="browse-btn"
+                        class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                        Browse Files
+                    </button>
+                </div>
+
+                <!-- Upload Progress -->
+                <div id="upload-progress" class="hidden mt-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm text-gray-600" id="upload-filename"></span>
+                        <span class="text-sm text-gray-600" id="upload-percentage">0%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div id="progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                            style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- Upload Status -->
+                <div id="upload-status" class="hidden mt-4 p-4 rounded-md">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <i id="status-icon" class="text-xl"></i>
+                        </div>
+                        <div class="ml-3">
+                            <p id="status-message" class="text-sm font-medium"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Leads Management Section -->
+            <div class="bg-white rounded-lg shadow">
+                <!-- Header with Controls -->
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                        <h2 class="text-lg font-medium text-gray-900 mb-4 sm:mb-0">Lead Management</h2>
+                        <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
+                            <button type="button" id="export-btn"
+                                class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed">
+                                <i class="fas fa-download mr-2"></i>Export CSV
+                            </button>
+                            <button type="button" id="refresh-btn"
+                                class="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700">
+                                <i class="fas fa-refresh mr-2"></i>Refresh
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filters -->
+                <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                    <div class="filter-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">First Name</label>
+                            <input type="text" id="filter-firstName"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Filter...">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Last Name</label>
+                            <input type="text" id="filter-lastName"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Filter...">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Title</label>
+                            <input type="text" id="filter-title"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Filter...">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Company</label>
+                            <input type="text" id="filter-company"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Filter...">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Email</label>
+                            <input type="text" id="filter-email"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Filter...">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Phone</label>
+                            <input type="text" id="filter-phone"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Filter...">
+                        </div>
+                        <div class="flex items-end">
+                            <button type="button" id="clear-filters"
+                                class="w-full bg-gray-500 text-white px-3 py-2 rounded-md text-sm hover:bg-gray-600">
+                                Clear Filters
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Leads Table -->
+                <div class="overflow-x-auto">
+                    <table class="table-responsive min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                    data-sort="firstName">
+                                    First Name <i class="fas fa-sort ml-1"></i>
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                    data-sort="lastName">
+                                    Last Name <i class="fas fa-sort ml-1"></i>
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                    data-sort="title">
+                                    Title <i class="fas fa-sort ml-1"></i>
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                    data-sort="company">
+                                    Company <i class="fas fa-sort ml-1"></i>
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                    data-sort="email">
+                                    Email <i class="fas fa-sort ml-1"></i>
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                    data-sort="phone">
+                                    Phone <i class="fas fa-sort ml-1"></i>
+                                </th>
+                                <th
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Actions
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="leads-tbody" class="bg-white divide-y divide-gray-200">
+                            <!-- Leads will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Loading State -->
+                <div id="loading-state" class="text-center py-12">
+                    <i class="fas fa-spinner fa-spin text-2xl text-gray-400 mb-4"></i>
+                    <p class="text-gray-600">Loading leads...</p>
+                </div>
+
+                <!-- Empty State -->
+                <div id="empty-state" class="text-center py-12 hidden">
+                    <i class="fas fa-inbox text-4xl text-gray-400 mb-4"></i>
+                    <p class="text-lg text-gray-600 mb-2">No leads found</p>
+                    <p class="text-sm text-gray-500">Upload a CSV or Excel file to get started</p>
+                </div>
+
+                <!-- Pagination -->
+                <div id="pagination" class="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+                    <div class="flex items-center">
+                        <span class="text-sm text-gray-700">
+                            Showing <span id="showing-from">0</span> to <span id="showing-to">0</span> of <span
+                                id="total-leads">0</span> leads
+                        </span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button type="button" id="prev-page"
+                            class="px-3 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed">
+                            Previous
+                        </button>
+                        <span id="page-info" class="px-3 py-2 text-sm text-gray-700">
+                            Page 1 of 1
+                        </span>
+                        <button type="button" id="next-page"
+                            class="px-3 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed">
+                            Next
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chat Interface -->
+    <div id="chat-widget" class="hidden fixed bottom-6 right-6 w-96 bg-white rounded-lg shadow-xl border">
+        <!-- Chat Header -->
+        <div class="flex items-center justify-between p-4 border-b bg-blue-600 text-white rounded-t-lg">
+            <h3 class="font-medium">Lead Assistant</h3>
+            <button type="button" id="chat-toggle" class="text-white hover:text-gray-200" title="Minimize chat">
+                <i class="fas fa-minus"></i>
+            </button>
+        </div>
+
+        <!-- Chat Messages -->
+        <div id="chat-messages" class="h-80 overflow-y-auto p-4 space-y-4">
+            <div class="flex items-start space-x-2">
+                <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                    <i class="fas fa-robot text-white text-sm"></i>
+                </div>
+                <div class="bg-gray-100 rounded-lg p-3 max-w-xs">
+                    <p class="text-sm">Hi! I'm your lead assistant. Ask me anything about your leads, like "Show me all
+                        leads from tech companies" or "How many leads do we have?"</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Input -->
+        <div class="p-4 border-t">
+            <div class="flex space-x-2">
+                <input type="text" id="chat-input"
+                    class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Ask about your leads..." title="Type your question about leads">
+                <button type="button" id="chat-send"
+                    class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+                    title="Send message">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chat Toggle Button -->
+    <button type="button" id="chat-fab"
+        class="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 flex items-center justify-center"
+        title="Open chat">
+        <i class="fas fa-comments text-xl"></i>
+    </button>
+
+    <!-- Lead Detail Modal -->
+    <div id="lead-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div class="flex items-center justify-between p-6 border-b">
+                <h3 class="text-lg font-medium text-gray-900">Lead Details</h3>
+                <button type="button" id="close-modal" class="text-gray-400 hover:text-gray-600" title="Close modal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="modal-content" class="p-6">
+                <!-- Lead details will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/config.js"></script>
+
+    <script src="js/auth.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/status.js"></script>
+    <script src="js/upload.js"></script>
+    <script src="js/leads.js"></script>
+    <script src="js/chat.js"></script>
+    <script src="js/app.js"></script>
+</body>
+
+</html>

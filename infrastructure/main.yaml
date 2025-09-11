@@ -1,0 +1,288 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Easy CRM Lead Management System - Main Stack'
+
+Parameters:
+  DeepSeekApiKey:
+    Type: String
+    Description: API key for DeepSeek AI service
+    NoEcho: true
+  
+  CertificateArn:
+    Type: String
+    Description: ACM certificate ARN for SSL
+    Default: 'arn:aws:acm:us-east-1:YOUR_ACCOUNT_ID:certificate/YOUR_CERTIFICATE_ID'
+  
+  Environment:
+    Type: String
+    Description: Environment name (dev, staging, prod)
+    Default: 'prod'
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+
+Resources:
+  # Storage Stack (DynamoDB and S3)
+  StorageStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub 'https://easy-crm-templates-${AWS::AccountId}.s3.${AWS::Region}.amazonaws.com/storage.yaml'
+      Parameters:
+        Environment: !Ref Environment
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: EasyCRM
+
+  # Cognito Stack (Authentication)
+  CognitoStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub 'https://easy-crm-templates-${AWS::AccountId}.s3.${AWS::Region}.amazonaws.com/cognito.yaml'
+      Parameters:
+        Environment: !Ref Environment
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: EasyCRM
+
+  # Lambda Stack (Functions and Roles)
+  LambdaStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: 
+      - StorageStack
+      - CognitoStack
+    Properties:
+      TemplateURL: !Sub 'https://easy-crm-templates-${AWS::AccountId}.s3.${AWS::Region}.amazonaws.com/lambda.yaml'
+      Parameters:
+        Environment: !Ref Environment
+        DeepSeekApiKey: !Ref DeepSeekApiKey
+        LeadsTableName: !GetAtt StorageStack.Outputs.LeadsTableName
+        FilesBucketName: !GetAtt StorageStack.Outputs.FilesBucketName
+        UserPoolId: !GetAtt CognitoStack.Outputs.UserPoolId
+        ProcessingStatusTableName: !GetAtt StorageStack.Outputs.ProcessingStatusTableName
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: EasyCRM
+
+  # API Gateway Stack
+  ApiGatewayStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: LambdaStack
+    Properties:
+      TemplateURL: !Sub 'https://easy-crm-templates-${AWS::AccountId}.s3.${AWS::Region}.amazonaws.com/api-gateway.yaml'
+      Parameters:
+        Environment: !Ref Environment
+        UserPoolId: !GetAtt CognitoStack.Outputs.UserPoolId
+        UserPoolClientId: !GetAtt CognitoStack.Outputs.UserPoolClientId
+        FileUploadFunctionArn: !GetAtt LambdaStack.Outputs.FileUploadFunctionArn
+        LeadReaderFunctionArn: !GetAtt LambdaStack.Outputs.LeadReaderFunctionArn
+        LeadExporterFunctionArn: !GetAtt LambdaStack.Outputs.LeadExporterFunctionArn
+        ChatbotFunctionArn: !GetAtt LambdaStack.Outputs.ChatbotFunctionArn
+        StatusReaderFunctionArn: !GetAtt LambdaStack.Outputs.StatusReaderFunctionArn
+
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: EasyCRM
+
+  # CloudFront Distribution (inline for better error visibility)
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    DependsOn: 
+      - StorageStack
+      - ApiGatewayStack
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - !Ref DomainName
+        Comment: !Sub 'Easy CRM ${Environment} Distribution'
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          CachedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          Compress: true
+          ForwardedValues:
+            QueryString: false
+            Cookies:
+              Forward: none
+          DefaultTTL: 86400
+          MaxTTL: 31536000
+          MinTTL: 0
+        CacheBehaviors:
+          - PathPattern: '/api/*'
+            TargetOriginId: ApiGatewayOrigin
+            ViewerProtocolPolicy: https-only
+            AllowedMethods:
+              - DELETE
+              - GET
+              - HEAD
+              - OPTIONS
+              - PATCH
+              - POST
+              - PUT
+            CachedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+            Compress: true
+            ForwardedValues:
+              QueryString: true
+              Headers:
+                - Authorization
+                - Content-Type
+                - X-Api-Key
+              Cookies:
+                Forward: none
+            DefaultTTL: 0
+            MaxTTL: 0
+            MinTTL: 0
+        DefaultRootObject: index.html
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 300
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 300
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Origins:
+          - Id: S3Origin
+            DomainName: !Sub '${StorageStack.Outputs.WebsiteBucketName}.s3.${AWS::Region}.amazonaws.com'
+            S3OriginConfig: {}
+            OriginAccessControlId: !GetAtt StorageStack.Outputs.OriginAccessControlId
+          - Id: ApiGatewayOrigin
+            DomainName: !GetAtt ApiGatewayStack.Outputs.ApiGatewayDomainName
+            CustomOriginConfig:
+              HTTPPort: 443
+              HTTPSPort: 443
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols:
+                - TLSv1.2
+            OriginPath: !Sub '/${Environment}'
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          AcmCertificateArn: !Ref CertificateArn
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.2_2021
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: EasyCRM
+
+  # S3 Bucket Policy to allow CloudFront OAC access
+  WebsiteBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    DependsOn: 
+      - CloudFrontDistribution
+      - StorageStack
+    Properties:
+      Bucket: !GetAtt StorageStack.Outputs.WebsiteBucketName
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowCloudFrontServicePrincipal
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub '${StorageStack.Outputs.WebsiteBucketArn}/*'
+            Condition:
+              StringEquals:
+                'AWS:SourceArn': !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}'
+
+Outputs:
+  WebsiteURL:
+    Description: URL of the website
+    Value: !Sub 'https://${DomainName}'
+    Export:
+      Name: !Sub '${AWS::StackName}-WebsiteURL'
+
+  CustomDomainName:
+    Description: Custom domain name for the website
+    Value: !Ref DomainName
+    Export:
+      Name: !Sub '${AWS::StackName}-CustomDomainName'
+
+  CloudFrontDistributionId:
+    Description: CloudFront Distribution ID
+    Value: !Ref CloudFrontDistribution
+    Export:
+      Name: !Sub '${AWS::StackName}-CloudFrontDistributionId'
+
+  CloudFrontDomainName:
+    Description: CloudFront Domain Name
+    Value: !GetAtt CloudFrontDistribution.DomainName
+    Export:
+      Name: !Sub '${AWS::StackName}-CloudFrontDomainName'
+
+  ApiGatewayURL:
+    Description: API Gateway endpoint URL
+    Value: !GetAtt ApiGatewayStack.Outputs.ApiGatewayURL
+    Export:
+      Name: !Sub '${AWS::StackName}-ApiGatewayURL'
+
+  UserPoolId:
+    Description: Cognito User Pool ID
+    Value: !GetAtt CognitoStack.Outputs.UserPoolId
+    Export:
+      Name: !Sub '${AWS::StackName}-UserPoolId'
+
+  UserPoolClientId:
+    Description: Cognito User Pool Client ID
+    Value: !GetAtt CognitoStack.Outputs.UserPoolClientId
+    Export:
+      Name: !Sub '${AWS::StackName}-UserPoolClientId'
+
+  IdentityPoolId:
+    Description: Cognito Identity Pool ID
+    Value: !GetAtt CognitoStack.Outputs.IdentityPoolId
+    Export:
+      Name: !Sub '${AWS::StackName}-IdentityPoolId'
+
+  LeadsTableName:
+    Description: DynamoDB Leads Table Name
+    Value: !GetAtt StorageStack.Outputs.LeadsTableName
+    Export:
+      Name: !Sub '${AWS::StackName}-LeadsTableName'
+
+  FilesBucketName:
+    Description: S3 Files Bucket Name
+    Value: !GetAtt StorageStack.Outputs.FilesBucketName
+    Export:
+      Name: !Sub '${AWS::StackName}-FilesBucketName'
+
+  WebsiteBucketName:
+    Description: S3 Website Bucket Name
+    Value: !GetAtt StorageStack.Outputs.WebsiteBucketName
+    Export:
+      Name: !Sub '${AWS::StackName}-WebsiteBucketName'
+
+  LeadProcessingQueueUrl:
+    Description: SQS Queue URL for Lead Processing
+    Value: !GetAtt LambdaStack.Outputs.LeadProcessingQueueUrl
+    Export:
+      Name: !Sub '${AWS::StackName}-LeadProcessingQueueUrl'
+
+  ProcessingStatusTableName:
+    Description: DynamoDB ProcessingStatus Table Name
+    Value: !GetAtt StorageStack.Outputs.ProcessingStatusTableName
+    Export:
+      Name: !Sub '${AWS::StackName}-ProcessingStatusTableName'

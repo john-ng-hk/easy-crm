@@ -1,0 +1,50 @@
+# Staging Environment Configuration
+Environment: staging
+StackName: easy-crm-staging
+Region: ap-southeast-1
+Profile: nch-prod
+
+# Resource Configuration
+DynamoDB:
+  BillingMode: ON_DEMAND
+  PointInTimeRecovery: true
+  DeletionProtection: false
+
+Lambda:
+  ReservedConcurrency: 50
+  MemorySize:
+    FileUpload: 128
+    LeadSplitter: 512
+    DeepSeekCaller: 512
+    LeadReader: 256
+    LeadExporter: 256
+    Chatbot: 256
+    StatusReader: 256
+  Timeout:
+    FileUpload: 30
+    LeadSplitter: 300
+    DeepSeekCaller: 900
+    LeadReader: 30
+    LeadExporter: 60
+    Chatbot: 60
+    StatusReader: 30
+
+S3:
+  LifecyclePolicyEnabled: true
+  VersioningEnabled: true
+  
+CloudFront:
+  PriceClass: PriceClass_100
+  CachingEnabled: true
+  
+# Monitoring
+CloudWatch:
+  LogRetentionDays: 14
+  DetailedMonitoring: true
+
+# Tags
+Tags:
+  Environment: staging
+  Application: EasyCRM
+  Owner: QA
+  CostCenter: Engineering

@@ -1,0 +1,153 @@
+# Easy CRM Deployment Configuration
+# This file contains global deployment settings and validation rules
+
+# Global Settings
+Global:
+  ProjectName: "Easy CRM"
+  Version: "1.0.0"
+  DefaultRegion: "ap-southeast-1"
+  DefaultProfile: "nch-prod"
+  
+# Validation Rules
+Validation:
+  RequiredParameters:
+    - DeepSeekApiKey
+  OptionalParameters:
+    - DomainName
+    - CertificateArn
+  
+  ParameterValidation:
+    DeepSeekApiKey:
+      MinLength: 20
+      Pattern: "^sk-[a-zA-Z0-9]+$"
+      Description: "DeepSeek API key must start with 'sk-' and contain alphanumeric characters"
+    
+    DomainName:
+      Pattern: "^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\\.[a-zA-Z]{2,}$"
+      Description: "Must be a valid domain name"
+    
+    CertificateArn:
+      Pattern: "^arn:aws:acm:[a-z0-9-]+:[0-9]{12}:certificate/[a-f0-9-]+$"
+      Description: "Must be a valid ACM certificate ARN"
+
+# Resource Naming Conventions
+Naming:
+  StackName: "easy-crm"
+  ResourcePrefix: "easy-crm"
+  
+  Templates:
+    Bucket: "easy-crm-templates-{account-id}"
+    
+  DynamoDB:
+    LeadsTable: "easy-crm-leads-{environment}"
+    
+  S3:
+    FilesBucket: "easy-crm-files-{account-id}-{environment}"
+    WebsiteBucket: "easy-crm-website-{account-id}-{environment}"
+    
+  Lambda:
+    FileUpload: "easy-crm-file-upload-{environment}"
+    LeadSplitter: "easy-crm-lead-splitter-{environment}"
+    DeepSeekCaller: "easy-crm-deepseek-caller-{environment}"
+    LeadReader: "easy-crm-lead-reader-{environment}"
+    LeadExporter: "easy-crm-lead-exporter-{environment}"
+    Chatbot: "easy-crm-chatbot-{environment}"
+
+# Deployment Phases
+Phases:
+  1_Prerequisites:
+    - Validate AWS CLI installation
+    - Check AWS profile configuration
+    - Verify IAM permissions
+    - Validate environment configuration
+    
+  2_Template_Preparation:
+    - Create S3 bucket for templates
+    - Upload nested CloudFormation templates
+    - Validate template syntax
+    
+  3_Infrastructure_Deployment:
+    - Deploy CloudFormation stack
+    - Wait for stack completion
+    - Validate stack outputs
+    
+  4_Lambda_Deployment:
+    - Package Lambda functions
+    - Deploy function code
+    - Validate function status
+    
+  5_Frontend_Deployment:
+    - Generate configuration files
+    - Upload static assets to S3
+    - Validate website accessibility
+    
+  6_Smoke_Tests:
+    - Test all AWS resources
+    - Validate API endpoints
+    - Check integration points
+    
+  7_Post_Deployment:
+    - Display deployment summary
+    - Provide next steps
+    - Generate deployment report
+
+# Rollback Strategy
+Rollback:
+  Triggers:
+    - CloudFormation stack failure
+    - Lambda deployment failure
+    - Smoke test failures
+    
+  Actions:
+    - Revert to previous CloudFormation stack version
+    - Restore previous Lambda function versions
+    - Notify deployment team
+    
+  Prevention:
+    - Always deploy to development first
+    - Run comprehensive tests before production
+    - Use blue-green deployment for critical updates
+
+# Monitoring and Alerting
+Monitoring:
+  CloudWatch:
+    LogGroups:
+      - "/aws/lambda/easy-crm-*"
+      - "/aws/apigateway/easy-crm-*"
+    
+    Metrics:
+      - Lambda function errors
+      - API Gateway 4xx/5xx errors
+      - DynamoDB throttling
+      - S3 access errors
+    
+  Alarms:
+    HighErrorRate:
+      Threshold: 5
+      Period: 300
+      EvaluationPeriods: 2
+    
+    HighLatency:
+      Threshold: 5000
+      Period: 300
+      EvaluationPeriods: 3
+
+# Security Configuration
+Security:
+  IAM:
+    LeastPrivilege: true
+    CrossAccountAccess: false
+    
+  Encryption:
+    S3: "AES256"
+    DynamoDB: "AWS_MANAGED"
+    Lambda: "AWS_MANAGED"
+    
+  Network:
+    VPC: false  # Serverless deployment
+    PublicAccess: true  # For static website
+    
+  Compliance:
+    DataRetention: "90 days"
+    LogRetention: "30 days"
+    BackupRetention: "7 days"
