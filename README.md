@@ -4,7 +4,7 @@ A serverless web application that enables users to upload CSV/Excel files contai
 
 ## 🔐 Security Notice
 
-This repository has been sanitized for public release. All sensitive information including API keys, production URLs, and AWS account details have been removed or replaced with placeholders. See [SECURITY_CHECKLIST.md](SECURITY_CHECKLIST.md) for details.
+This repository has been sanitized for public release. All sensitive information including API keys, production URLs, and AWS account details have been removed or replaced with placeholders.
 
 ## 🚀 Quick Start
 
