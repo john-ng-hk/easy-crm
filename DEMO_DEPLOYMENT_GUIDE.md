@@ -15,7 +15,7 @@ The demo environment is configured with:
 
 ### 1. AWS Account Setup
 - AWS CLI installed and configured
-- AWS profile `nch-prod` configured (or update the profile in `config/environments/demo.yaml`)
+- AWS profile `your-aws-profile` configured (or update the profile in `config/environments/demo.yaml`)
 - Appropriate IAM permissions for CloudFormation, Lambda, DynamoDB, S3, Cognito, API Gateway, CloudFront
 
 ### 2. Required Services
@@ -142,7 +142,7 @@ After successful deployment, get the URLs:
 aws cloudformation describe-stacks \
   --stack-name easy-crm-demo \
   --region ap-southeast-1 \
-  --profile nch-prod \
+  --profile your-aws-profile \
   --query 'Stacks[0].Outputs[*].[OutputKey,OutputValue]' \
   --output table
 ```
@@ -161,7 +161,7 @@ aws cloudformation describe-stacks \
 USER_POOL_ID=$(aws cloudformation describe-stacks \
   --stack-name easy-crm-demo \
   --region ap-southeast-1 \
-  --profile nch-prod \
+  --profile your-aws-profile \
   --query 'Stacks[0].Outputs[?OutputKey==`UserPoolId`].OutputValue' \
   --output text)
 
@@ -173,7 +173,7 @@ aws cognito-idp admin-create-user \
   --temporary-password TempPass123! \
   --message-action SUPPRESS \
   --region ap-southeast-1 \
-  --profile nch-prod
+  --profile your-aws-profile
 ```
 
 ### 2. Upload Test Data
@@ -200,10 +200,10 @@ Use the provided test files:
 Monitor Lambda function logs:
 ```bash
 # View logs for specific function
-aws logs tail /aws/lambda/easy-crm-lead-splitter-demo --follow --region ap-southeast-1 --profile nch-prod
+aws logs tail /aws/lambda/easy-crm-lead-splitter-demo --follow --region ap-southeast-1 --profile your-aws-profile
 
 # View all CRM-related log groups
-aws logs describe-log-groups --log-group-name-prefix "/aws/lambda/easy-crm" --region ap-southeast-1 --profile nch-prod
+aws logs describe-log-groups --log-group-name-prefix "/aws/lambda/easy-crm" --region ap-southeast-1 --profile your-aws-profile
 ```
 
 ### Common Issues
@@ -217,13 +217,13 @@ aws logs describe-log-groups --log-group-name-prefix "/aws/lambda/easy-crm" --re
 
 ```bash
 # Check stack status
-aws cloudformation describe-stacks --stack-name easy-crm-demo --region ap-southeast-1 --profile nch-prod
+aws cloudformation describe-stacks --stack-name easy-crm-demo --region ap-southeast-1 --profile your-aws-profile
 
 # Check Lambda function status
-aws lambda list-functions --region ap-southeast-1 --profile nch-prod | grep easy-crm-demo
+aws lambda list-functions --region ap-southeast-1 --profile your-aws-profile | grep easy-crm-demo
 
 # Check DynamoDB table
-aws dynamodb describe-table --table-name easy-crm-leads-demo --region ap-southeast-1 --profile nch-prod
+aws dynamodb describe-table --table-name easy-crm-leads-demo --region ap-southeast-1 --profile your-aws-profile
 ```
 
 ## 🧹 Cleanup
@@ -232,11 +232,11 @@ When you're done with the demo:
 
 ```bash
 # Delete the CloudFormation stack (this removes all resources)
-aws cloudformation delete-stack --stack-name easy-crm-demo --region ap-southeast-1 --profile nch-prod
+aws cloudformation delete-stack --stack-name easy-crm-demo --region ap-southeast-1 --profile your-aws-profile
 
 # Clean up S3 template bucket (if not used by other stacks)
-aws s3 rm s3://easy-crm-templates-{account-id}/ --recursive --profile nch-prod
-aws s3 rb s3://easy-crm-templates-{account-id}/ --profile nch-prod
+aws s3 rm s3://easy-crm-templates-{account-id}/ --recursive --profile your-aws-profile
+aws s3 rb s3://easy-crm-templates-{account-id}/ --profile your-aws-profile
 ```
 
 ## 📞 Support
