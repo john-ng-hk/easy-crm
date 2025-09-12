@@ -1,0 +1,51 @@
+# Demo Environment Configuration
+Environment: demo
+StackName: easy-crm-demo
+Region: ap-southeast-1
+Profile: nch-prod
+
+# Resource Configuration
+DynamoDB:
+  BillingMode: ON_DEMAND
+  PointInTimeRecovery: false
+  DeletionProtection: false
+
+Lambda:
+  ReservedConcurrency: 5
+  MemorySize:
+    FileUpload: 128
+    LeadSplitter: 256
+    DeepSeekCaller: 256
+    LeadReader: 128
+    LeadExporter: 128
+    Chatbot: 128
+    StatusReader: 128
+  Timeout:
+    FileUpload: 30
+    LeadSplitter: 300
+    DeepSeekCaller: 900
+    LeadReader: 30
+    LeadExporter: 60
+    Chatbot: 60
+    StatusReader: 30
+
+S3:
+  LifecyclePolicyEnabled: true
+  VersioningEnabled: false
+  
+CloudFront:
+  PriceClass: PriceClass_100
+  CachingEnabled: true
+  
+# Monitoring
+CloudWatch:
+  LogRetentionDays: 3
+  DetailedMonitoring: false
+
+# Tags
+Tags:
+  Environment: demo
+  Application: EasyCRM
+  Owner: Demo
+  CostCenter: Marketing
+  Purpose: Demonstration

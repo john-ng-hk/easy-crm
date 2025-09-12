@@ -363,13 +363,17 @@ Resources:
       SourceArn: !Sub 'arn:aws:s3:::${FilesBucketName}'
 
   # SQS Event Source Mapping for DeepSeek Caller
-  DeepSeekCallerEventSourceMapping:
-    Type: AWS::Lambda::EventSourceMapping
-    Properties:
-      EventSourceArn: !GetAtt LeadProcessingQueue.Arn
-      FunctionName: !Ref DeepSeekCallerFunction
-      BatchSize: 1  # Process one message at a time
-      MaximumBatchingWindowInSeconds: 0
+  # Note: EventSourceMapping will be created manually after deployment
+  # DeepSeekCallerEventSourceMapping:
+  #   Type: AWS::Lambda::EventSourceMapping
+  #   DependsOn:
+  #     - LeadProcessingQueue
+  #     - DeepSeekCallerFunction
+  #   Properties:
+  #     EventSourceArn: !GetAtt LeadProcessingQueue.Arn
+  #     FunctionName: !Ref DeepSeekCallerFunction
+  #     BatchSize: 1  # Process one message at a time
+  #     MaximumBatchingWindowInSeconds: 0
 
   # S3 Notification Configuration will be added manually after deployment
 

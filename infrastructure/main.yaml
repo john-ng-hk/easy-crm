@@ -14,12 +14,21 @@ Parameters:
   
   Environment:
     Type: String
-    Description: Environment name (dev, staging, prod)
+    Description: Environment name (dev, staging, prod, demo)
     Default: 'prod'
     AllowedValues:
       - dev
       - staging
       - prod
+      - demo
+  
+  DomainName:
+    Type: String
+    Description: Custom domain name for the application
+    Default: 'your-domain.com'
+
+Conditions:
+  HasCustomDomain: !Not [!Equals [!Ref DomainName, 'your-domain.com']]
 
 Resources:
   # Storage Stack (DynamoDB and S3)
@@ -42,6 +51,7 @@ Resources:
       TemplateURL: !Sub 'https://easy-crm-templates-${AWS::AccountId}.s3.${AWS::Region}.amazonaws.com/cognito.yaml'
       Parameters:
         Environment: !Ref Environment
+        DomainName: !Ref DomainName
       Tags:
         - Key: Environment
           Value: !Ref Environment
@@ -99,8 +109,10 @@ Resources:
       - ApiGatewayStack
     Properties:
       DistributionConfig:
-        Aliases:
-          - !Ref DomainName
+        Aliases: !If 
+          - HasCustomDomain
+          - [!Ref DomainName]
+          - !Ref 'AWS::NoValue'
         Comment: !Sub 'Easy CRM ${Environment} Distribution'
         DefaultCacheBehavior:
           TargetOriginId: S3Origin
@@ -177,10 +189,12 @@ Resources:
                 - TLSv1.2
             OriginPath: !Sub '/${Environment}'
         PriceClass: PriceClass_100
-        ViewerCertificate:
-          AcmCertificateArn: !Ref CertificateArn
-          SslSupportMethod: sni-only
-          MinimumProtocolVersion: TLSv1.2_2021
+        ViewerCertificate: !If
+          - HasCustomDomain
+          - AcmCertificateArn: !Ref CertificateArn
+            SslSupportMethod: sni-only
+            MinimumProtocolVersion: TLSv1.2_2021
+          - CloudFrontDefaultCertificate: true
       Tags:
         - Key: Environment
           Value: !Ref Environment
