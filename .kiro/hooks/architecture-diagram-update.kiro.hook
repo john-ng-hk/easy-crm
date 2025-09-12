@@ -1,0 +1,21 @@
+{
+  "enabled": true,
+  "name": "Architecture Diagram Update",
+  "description": "Updates architecture diagrams only when there are changes to infrastructure, system design, or architectural components - ignores pure code changes",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "infrastructure/*.yaml",
+      "docs/infra.drawio",
+      "docs/batch-processing-architecture.md",
+      "docs/deployment-guide.md",
+      "lambda/*/lambda_function.py",
+      "infrastructure/README.md"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Analyze the changed files to determine if they represent architecture changes that would require updating the architecture diagram. Architecture changes include: infrastructure modifications (CloudFormation templates), new services or components, changes to data flow, API endpoints, database schema changes, or system integration changes. Pure code changes like bug fixes, feature implementations within existing components, or refactoring do NOT require diagram updates. If architecture changes are detected, update the relevant architecture diagrams in docs/infra.drawio and generated-diagrams/ folder. If only code changes are detected, do not update diagrams."
+  }
+}
