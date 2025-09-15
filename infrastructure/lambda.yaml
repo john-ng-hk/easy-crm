@@ -34,7 +34,7 @@ Resources:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub 'easy-crm-lead-processing-${Environment}'
-      VisibilityTimeout: 60  # 1 minute for DeepSeek processing
+      VisibilityTimeout: 180  # 3 minute for DeepSeek processing
       MessageRetentionPeriod: 1209600  # 14 days
       ReceiveMessageWaitTimeSeconds: 20  # Long polling
       RedrivePolicy:
